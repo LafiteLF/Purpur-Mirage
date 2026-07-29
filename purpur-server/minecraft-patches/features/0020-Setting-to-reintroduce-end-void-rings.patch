@@ -15,9 +15,9 @@ index bc493f35fb06107a1ed44b2a24009ba4015e0e88..ece422ef99fbb30365b53599e985c1ff
 +            // Purpur start - Migrate Setting to reintroduce end void rings
 +            if (org.purpurmc.purpur.configuration.transformation.FarEndTerrainGenerationMigration.HAS_BEEN_REGISTERED) {
 +                try {
-+                    org.purpurmc.purpur.PurpurConfig.config.save((java.io.File) this.options.valueOf("purpur-settings"));
++                    org.purpurmc.purpur.PurpurConfig.config.save((java.io.File) this.options.valueOf("mirage-settings"));
 +                } catch (IOException ex) {
-+                    org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.SEVERE, "Could not save " + this.options.valueOf("purpur-settings"), ex);
++                    org.bukkit.Bukkit.getLogger().log(java.util.logging.Level.SEVERE, "Could not save " + this.options.valueOf("mirage-settings"), ex);
 +                }
 +            }
 +            // Purpur end - Migrate Setting to reintroduce end void rings
@@ -34,7 +34,7 @@ index db49e99e5c54722f528849eb0a4b2184b21c8200..9b198882584e7fd41b88e3a23c76f723
          // Spigot end
 +        // Purpur start - Migrate Setting to reintroduce end void rings
 +        try {
-+            org.purpurmc.purpur.PurpurConfig.init((java.io.File) options.valueOf("purpur-settings"));
++            org.purpurmc.purpur.PurpurConfig.init((java.io.File) options.valueOf("mirage-settings"));
 +        } catch (Exception e) {
 +            DedicatedServer.LOGGER.error("Unable to load server configuration", e);
 +            return false;

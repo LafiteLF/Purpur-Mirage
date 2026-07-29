@@ -12,12 +12,12 @@ index 652ff54e7c50412503725d628bfe72ed03059790..fb1fe2651e53a9bf46b3632c638e13ee
       */
      Key BRAND_PAPER_ID = Key.key("papermc", "paper");
  
-+    // Purpur start
++    // Mirage start
 +    /**
-+     * The brand id for Purpur.
++     * The brand id for Mirage.
 +     */
-+    Key BRAND_PURPUR_ID = Key.key("purpurmc", "purpur");
-+    // Purpur end
++    Key BRAND_PURPUR_ID = Key.key("mirage", "mirage");
++    // Mirage end
      /**
       * Gets the {@code ServerBuildInfo}.
       *

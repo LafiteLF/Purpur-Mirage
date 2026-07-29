@@ -105,7 +105,7 @@ public class PurpurVersionFetcher implements VersionFetcher {
                 final int latest = json.getAsJsonObject("builds").getAsJsonPrimitive("latest").getAsInt();
                 return latest - jenkinsBuild;
             } catch (final JsonSyntaxException ex) {
-                LOGGER.error("Error parsing json from Purpur's downloads API", ex);
+                LOGGER.error("Error parsing json from Mirage's downloads API", ex);
                 return DISTANCE_ERROR;
             }
         } catch (final IOException e) {

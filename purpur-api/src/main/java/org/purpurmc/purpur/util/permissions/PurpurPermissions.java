@@ -27,7 +27,7 @@ public final class PurpurPermissions {
 
     @NotNull
     public static Permission registerPermissions() {
-        Permission purpur = DefaultPermissions.registerPermission(ROOT, "Gives the user the ability to use all Purpur utilities and commands", PermissionDefault.FALSE);
+        Permission purpur = DefaultPermissions.registerPermission(ROOT, "Gives the user the ability to use all Mirage utilities and commands", PermissionDefault.FALSE);
 
         DefaultPermissions.registerPermission(PREFIX + "enderchest.rows.six", "Gives the user six rows of enderchest space", PermissionDefault.FALSE, purpur);
         DefaultPermissions.registerPermission(PREFIX + "enderchest.rows.five", "Gives the user five rows of enderchest space", PermissionDefault.FALSE, purpur);

@@ -87,7 +87,7 @@ tasks.register("printMinecraftVersion") {
     }
 }
 
-tasks.register("printPurpurVersion") {
+tasks.register("printMirageVersion") {
     doLast {
         println(project.version)
     }

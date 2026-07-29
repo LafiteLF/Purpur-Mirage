@@ -64,7 +64,7 @@ public class PurpurConfig {
             config.load(CONFIG_FILE);
         } catch (IOException ignore) {
         } catch (InvalidConfigurationException ex) {
-            Bukkit.getLogger().log(Level.SEVERE, "Could not load purpur.yml, please correct your syntax errors", ex);
+            Bukkit.getLogger().log(Level.SEVERE, "Could not load mirage.yml, please correct your syntax errors", ex);
             throw Throwables.propagate(ex);
         }
         config.options().header(HEADER);
@@ -72,7 +72,7 @@ public class PurpurConfig {
         verbose = getBoolean("verbose", false);
 
         commands = new HashMap<>();
-        commands.put("purpur", new PurpurCommand("purpur"));
+        commands.put("mirage", new PurpurCommand("mirage"));
 
         version = getInt("config-version", 48);
         set("config-version", 48);
@@ -98,7 +98,7 @@ public class PurpurConfig {
 
     public static void registerCommands() {
         for (Map.Entry<String, Command> entry : commands.entrySet()) {
-            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Purpur", entry.getValue());
+            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Mirage", entry.getValue());
         }
     }
 
