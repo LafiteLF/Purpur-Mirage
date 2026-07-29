@@ -358,15 +358,15 @@ public class MirageConfig {
 
         if (logOptimizationSummary) {
             int enabled = countEnabled();
-            PurpurConfig.log(Level.INFO, "[Mirage] Optimization engine initialized — " + enabled + " optimization modules active.");
+            org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Optimization engine initialized — " + enabled + " optimization modules active.");
             if (fastRandom) {
-                PurpurConfig.log(Level.INFO, "[Mirage] Using Xoshiro256++ fast random generator.");
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Using Xoshiro256++ fast random generator.");
             }
             if (optimizeMobSpawning) {
-                PurpurConfig.log(Level.INFO, "[Mirage] Mob spawning optimized for client FPS: cap=" + (int)(mobCapMultiplier * 100) + "%, despawn=" + optimizedDespawnDistance + " blocks.");
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Mob spawning optimized for client FPS: cap=" + (int)(mobCapMultiplier * 100) + "%, despawn=" + optimizedDespawnDistance + " blocks.");
             }
             if (optimizeEntityTrackingRange) {
-                PurpurConfig.log(Level.INFO, "[Mirage] Entity tracking range reduced to " + (int)(entityTrackingRangeMultiplier * 100) + "% for client FPS improvement.");
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Entity tracking range reduced to " + (int)(entityTrackingRangeMultiplier * 100) + "% for client FPS improvement.");
             }
         }
     }
