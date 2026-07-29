@@ -76,14 +76,10 @@
 +    // Mirage start - Embedded Python runtime (GraalPy)
 +    // These dependencies bundle a complete Python 3 interpreter inside the JAR,
 +    // so server admins don't need to install Python on the host machine.
-+    // GraalPy pulls in python-language, python-resources, truffle-runtime, etc. transitively.
++    // NOTE: GraalVM JARs are shaded from runtimeClasspath in the jar task below,
++    // not via alsoShade (which can't resolve from project repositories).
 +    implementation("org.graalvm.polyglot:polyglot:25.2.4")
 +    implementation("org.graalvm.polyglot:python:25.2.4")
-+    alsoShade("org.graalvm.polyglot:polyglot:25.2.4")
-+    alsoShade("org.graalvm.polyglot:python:25.2.4")
-+    alsoShade("org.graalvm.sdk:collections:25.2.4")
-+    alsoShade("org.graalvm.sdk:nativeimage:25.2.4")
-+    alsoShade("org.graalvm.truffle:truffle-api:25.2.4")
 +    // Mirage end - Embedded Python runtime (GraalPy)
 +
      // Deps that were previously in the API but have now been moved here for backwards compat, eventually to be removed

@@ -69,6 +69,7 @@ subprojects {
     repositories {
         maven("https://maven.aliyun.com/repository/central") // Mirage - Aliyun mirror for speed
         maven(paperMavenPublicUrl)
+        mavenCentral() // Mirage - Maven Central fallback for GraalVM Python packages
     }
 
     extensions.configure<PublishingExtension> {

@@ -164,16 +164,17 @@ public final class MirageMonitor {
             int loadedChunks = 0;
 
             for (net.minecraft.server.level.ServerLevel level : server.getAllLevels()) {
-                int worldEntities = level.getEntityLookup().count();
-                totalEntities += worldEntities;
                 loadedChunks += level.getChunkSource().getLoadedChunksCount();
 
-                // Update entity limiter counts per world
+                // Update entity limiter counts per world — use FeatureHooks for entity iteration
                 int[] counts = new int[8];
-                level.getEntityLookup().getAll().forEach(entity -> {
+                int worldEntityCount = 0;
+                for (net.minecraft.world.entity.Entity entity : io.papermc.paper.FeatureHooks.getAllEntities(level)) {
+                    worldEntityCount++;
                     int cat = categorizeEntity(entity);
                     if (cat >= 0 && cat < 8) counts[cat]++;
-                });
+                }
+                totalEntities += worldEntityCount;
                 String worldName = level.getWorld().getName();
                 MirageEntityLimiter.updateWorldCounts(worldName, counts);
 
@@ -229,11 +230,15 @@ public final class MirageMonitor {
     private static int categorizeEntity(net.minecraft.world.entity.Entity entity) {
         try {
             if (entity instanceof net.minecraft.world.entity.Mob mob) {
-                if (mob.classification == net.minecraft.world.entity.MobCategory.MONSTER) return MirageEntityLimiter.CATEGORY_MONSTER;
+                net.minecraft.world.entity.MobCategory category = mob.getType().getCategory();
+                if (category == net.minecraft.world.entity.MobCategory.MONSTER) return MirageEntityLimiter.CATEGORY_MONSTER;
+                if (category == net.minecraft.world.entity.MobCategory.WATER_CREATURE
+                    || category == net.minecraft.world.entity.MobCategory.WATER_AMBIENT
+                    || category == net.minecraft.world.entity.MobCategory.UNDERGROUND_WATER_CREATURE) return MirageEntityLimiter.CATEGORY_WATER;
                 return MirageEntityLimiter.CATEGORY_ANIMAL;
             }
             if (entity instanceof net.minecraft.world.entity.ambient.AmbientCreature) return MirageEntityLimiter.CATEGORY_AMBIENT;
-            if (entity instanceof net.minecraft.world.entity.animal.WaterAnimal) return MirageEntityLimiter.CATEGORY_WATER;
+            if (entity instanceof net.minecraft.world.entity.animal.fish.WaterAnimal) return MirageEntityLimiter.CATEGORY_WATER;
             if (entity instanceof net.minecraft.world.entity.item.ItemEntity) return MirageEntityLimiter.CATEGORY_ITEM;
             if (entity instanceof net.minecraft.world.entity.ExperienceOrb) return MirageEntityLimiter.CATEGORY_XP_ORB;
             if (entity instanceof net.minecraft.world.entity.projectile.Projectile) return MirageEntityLimiter.CATEGORY_PROJECTILE;
