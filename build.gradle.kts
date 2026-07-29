@@ -62,7 +62,7 @@ subprojects {
     }
 
     repositories {
-        mavenCentral()
+        maven("https://maven.aliyun.com/repository/central") // Mirage - Aliyun mirror for speed
         maven(paperMavenPublicUrl)
     }
 

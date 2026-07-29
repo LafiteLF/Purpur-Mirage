@@ -79,6 +79,10 @@ public class PurpurConfig {
 
         readConfig(PurpurConfig.class, null);
 
+        // Mirage start - initialize optimization engine
+        org.purpurmc.purpur.mirage.MirageConfig.init();
+        // Mirage end - initialize optimization engine
+
         Block.BLOCK_STATE_REGISTRY.forEach(BlockBehaviour.BlockStateBase::initCache);
     }
 

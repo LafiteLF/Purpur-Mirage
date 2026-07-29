@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirage 优化引擎 — 服务端与客户端极致优化</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --glass-bg: rgba(255,255,255,0.08);
+  --glass-bg-hover: rgba(255,255,255,0.12);
+  --glass-border: rgba(255,255,255,0.15);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  --glass-blur: blur(16px) saturate(180%);
+  --text-primary: #f0f4f8;
+  --text-secondary: #a0aec0;
+  --text-accent: #81e6d9;
+  --accent-cyan: #0fd9c0;
+  --accent-purple: #9f7aea;
+  --accent-pink: #ed64a6;
+  --accent-orange: #f6ad55;
+  --accent-green: #68d391;
+  --accent-blue: #63b3ed;
+  --gradient-1: #0f0c29;
+  --gradient-2: #1a1a2e;
+  --gradient-3: #16213e;
+  --gradient-4: #0f3460;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--gradient-1);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 流动渐变背景 */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: linear-gradient(45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3), var(--gradient-4), var(--gradient-2), var(--gradient-1));
+  background-size: 400% 400%;
+  animation: gradientFlow 20s ease infinite;
+  z-index: -2;
+}
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(15,217,192,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(159,122,234,0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(99,179,237,0.05) 0%, transparent 50%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 液态玻璃容器 */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+}
+
+/* Hero区域 */
+.hero {
+  padding: 80px 40px 60px;
+  text-align: center;
+  position: relative;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, rgba(15,217,192,0.2), rgba(159,122,234,0.2));
+  border: 1px solid rgba(15,217,192,0.3);
+}
+.hero h1 {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-cyan) 50%, var(--accent-purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  line-height: 1.1;
+}
+.hero p {
+  font-size: 18px;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 auto 32px;
+  line-height: 1.6;
+}
+
+/* 统计卡片 */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.stat-card {
+  padding: 20px 32px;
+  text-align: center;
+  min-width: 160px;
+}
+.stat-card .stat-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* 主容器 */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+}
+
+/* 章节标题 */
+.section {
+  margin-top: 60px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.section-icon {
+  width: 48px; height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.section-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* 优化卡片网格 */
+.opt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.opt-card {
+  padding: 24px;
+  transition: all 0.3s ease;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+}
+.opt-card:hover {
+  background: var(--glass-bg-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.opt-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+  background: var(--card-accent, var(--accent-cyan));
+}
+.opt-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.opt-card-icon {
+  width: 36px; height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 16px;
+  background: var(--card-accent-bg, rgba(15,217,192,0.15));
+  color: var(--card-accent, var(--accent-cyan));
+}
+.opt-card-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.opt-card-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: auto;
+}
+.opt-card-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.opt-card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.opt-meta-item {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+}
+
+/* 配置参考表 */
+.config-table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+}
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.config-table thead th {
+  text-align: left;
+  padding: 14px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--glass-border);
+}
+.config-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.config-table tbody tr:hover {
+  background: rgba(255,255,255,0.04);
+}
+.config-path {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-cyan);
+  font-size: 12px;
+}
+.config-default {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-orange);
+  font-size: 12px;
+}
+.config-type {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* 色彩主题 */
+.theme-cyan { --card-accent: var(--accent-cyan); --card-accent-bg: rgba(15,217,192,0.15); }
+.theme-purple { --card-accent: var(--accent-purple); --card-accent-bg: rgba(159,122,234,0.15); }
+.theme-pink { --card-accent: var(--accent-pink); --card-accent-bg: rgba(237,100,166,0.15); }
+.theme-orange { --card-accent: var(--accent-orange); --card-accent-bg: rgba(246,173,85,0.15); }
+.theme-green { --card-accent: var(--accent-green); --card-accent-bg: rgba(104,211,145,0.15); }
+.theme-blue { --card-accent: var(--accent-blue); --card-accent-bg: rgba(99,179,237,0.15); }
+
+/* 流程图 */
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 32px;
+  margin-top: 16px;
+}
+.flow-node {
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 120px;
+}
+.flow-arrow {
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+
+/* 架构图 */
+.arch-diagram {
+  padding: 32px;
+  margin-top: 16px;
+}
+.arch-layer {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.arch-box {
+  flex: 1;
+  min-width: 200px;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+}
+.arch-box-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.arch-box-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .hero h1 { font-size: 36px; }
+  .hero p { font-size: 16px; }
+  .container { padding: 0 20px 40px; }
+  .opt-grid { grid-template-columns: 1fr; }
+  .stat-card { min-width: 140px; }
+}
+
+/* 动画 */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fadeInUp 0.6s ease forwards;
+}
+.opt-card {
+  opacity: 0;
+  animation: fadeInUp 0.6s ease forwards;
+}
+.opt-card:nth-child(1) { animation-delay: 0.1s; }
+.opt-card:nth-child(2) { animation-delay: 0.2s; }
+.opt-card:nth-child(3) { animation-delay: 0.3s; }
+.opt-card:nth-child(4) { animation-delay: 0.4s; }
+.opt-card:nth-child(5) { animation-delay: 0.5s; }
+.opt-card:nth-child(6) { animation-delay: 0.6s; }
+
+/* 文件列表 */
+.file-tree {
+  padding: 24px;
+  margin-top: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.file-tree .dir { color: var(--accent-cyan); font-weight: 600; }
+.file-tree .file { color: var(--text-secondary); }
+.file-tree .new { color: var(--accent-green); }
+.file-tree .mod { color: var(--accent-orange); }
+
+/* 警告框 */
+.notice {
+  padding: 16px 20px;
+  border-radius: 14px;
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.notice-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.notice-content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">
+    <i class="fas fa-bolt"></i>
+    <span>MIRAGE OPTIMIZATION ENGINE v1.0</span>
+  </div>
+  <h1>Mirage 极致优化引擎</h1>
+  <p>将 Lithium、FerriteCore、ModernFix、MemoryFix 等著名优化模组的核心理念直接整合到服务端源码中，实现服务端性能与客户端 FPS 的双重极致提升。</p>
+  
+  <div class="stats-row">
+    <div class="stat-card glass">
+      <div class="stat-icon" style="color: var(--accent-cyan)"><i class="fas fa-microchip"></i></div>
+      <div class="stat-value">46+</div>
+      <div class="stat-label">优化模块</div>
+    </div>
+    <div class="stat-card glass">
+      <div class="stat-icon" style="color: var(--accent-purple)"><i class="fas fa-memory"></i></div>
+      <div class="stat-value">10</div>
+      <div class="stat-label">内存优化</div>
+    </div>
+    <div class="stat-card glass">
+      <div class="stat-icon" style="color: var(--accent-green)"><i class="fas fa-tachometer-alt"></i></div>
+      <div class="stat-value">300+</div>
+      <div class="stat-label">目标客户端FPS</div>
+    </div>
+    <div class="stat-card glass">
+      <div class="stat-icon" style="color: var(--accent-orange)"><i class="fas fa-code-branch"></i></div>
+      <div class="stat-value">15</div>
+      <div class="stat-label">源码补丁</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 架构总览 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-cyan)"><i class="fas fa-sitemap"></i></div>
+      <div>
+        <div class="section-title">架构总览</div>
+        <div class="section-desc">Mirage 优化引擎的整体架构与数据流</div>
+      </div>
+    </div>
+    <div class="glass arch-diagram">
+      <div class="arch-layer">
+        <div class="arch-box glass theme-cyan">
+          <div class="arch-box-title">MirageConfig</div>
+          <div class="arch-box-desc">中央配置管理 — 读取 purpur.yml 中 settings.mirage.* 配置</div>
+        </div>
+        <div class="arch-box glass theme-purple">
+          <div class="arch-box-title">MirageOptimizer</div>
+          <div class="arch-box-desc">核心工具 — 快速随机数、对象池、距离计算、自适应视距</div>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-box glass theme-green">
+          <div class="arch-box-title">MemoryOptimizer</div>
+          <div class="arch-box-desc">FerriteCore 理念 — 方块状态缓存、实体压缩、NBT 去重</div>
+        </div>
+        <div class="arch-box glass theme-orange">
+          <div class="arch-box-title">EntityOptimizer</div>
+          <div class="arch-box-desc">Lithium 理念 — AI 跳过、寻路限流、碰撞缓存</div>
+        </div>
+        <div class="arch-box glass theme-blue">
+          <div class="arch-box-title">ChunkOptimizer</div>
+          <div class="arch-box-desc">区块优化 — tick 顺序、批量卸载、异步压缩</div>
+        </div>
+      </div>
+      <div class="arch-layer">
+        <div class="arch-box glass theme-pink">
+          <div class="arch-box-title">ClientOptimizer</div>
+          <div class="arch-box-desc">服务端驱动 — 追踪范围、更新包频率、动态视距</div>
+        </div>
+        <div class="arch-box glass theme-cyan">
+          <div class="arch-box-title">RedstoneOptimizer</div>
+          <div class="arch-box-desc">红石优化 — 批量更新、邻居跳过、计划tick队列</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内存优化 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-purple)"><i class="fas fa-memory"></i></div>
+      <div>
+        <div class="section-title">内存优化 — FerriteCore / MemoryFix 理念</div>
+        <div class="section-desc">减少堆内存占用，降低 GC 压力，提升整体吞吐量</div>
+      </div>
+    </div>
+    <div class="opt-grid">
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="opt-card-title">方块状态缓存</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">缓存常用方块状态的属性查询结果，避免重复计算光照、碰撞等数据。LRU 缓存上限可配置。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">BlockBehaviour.BlockStateBase</span>
+          <span class="opt-meta-item">cache size: 65536</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-compress-arrows-alt"></i></div>
+          <div class="opt-card-title">实体数据压缩</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">将实体坐标、旋转、生命值等打包到紧凑的 long 字段中，单个实体节省约 40 字节堆内存。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">CompactEntityData</span>
+          <span class="opt-meta-item">3 longs / entity</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-clone"></i></div>
+          <div class="opt-card-title">NBT 标签去重</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">使用 ConcurrentHashMap 对相同内容的 NBT 标签进行去重，减少堆中重复对象的数量。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">CompoundTag</span>
+          <span class="opt-meta-item">thread-safe</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-cube"></i></div>
+          <div class="opt-card-title">BlockPos 对象池</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">使用 ThreadLocal 复用 BlockPos 实例，减少高频方块位置操作产生的 GC 压力。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">PooledBlockPos</span>
+          <span class="opt-meta-item">per-thread</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-palette"></i></div>
+          <div class="opt-card-title">区块调色板优化</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">自动压缩区块段中的调色板数据，对空段落使用单值调色板，减少每段内存占用。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">LevelChunkSection</span>
+          <span class="opt-meta-item">PalettedContainer.compact()</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-purple">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-recycle"></i></div>
+          <div class="opt-card-title">弱引用区块缓存</div>
+          <span class="opt-card-tag">Memory</span>
+        </div>
+        <div class="opt-card-desc">使用 WeakReference 缓存区块文件对象，在内存压力下允许 GC 自动回收，避免 OOM。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">RegionFileStorage</span>
+          <span class="opt-meta-item">auto-evict</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 实体优化 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-orange)"><i class="fas fa-running"></i></div>
+      <div>
+        <div class="section-title">实体优化 — Lithium 理念</div>
+        <div class="section-desc">减少实体 AI 计算开销，跳过不必要的物理与寻路</div>
+      </div>
+    </div>
+    <div class="opt-grid">
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-user-slash"></i></div>
+          <div class="opt-card-title">远距离实体 AI 跳过</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">距离玩家超过 32 格的实体跳过完整 AI tick，大幅减少远端实体的 CPU 开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">entityAiSkipDistance: 32</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-clock"></i></div>
+          <div class="opt-card-title">非活跃 AI 降频</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">非活跃实体（不在 EAR 范围内）的 AI tick 频率降低到每 4 tick 一次，减少 75% 的 AI 开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">interval: 4 ticks</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-route"></i></div>
+          <div class="opt-card-title">冗余寻路跳过</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">检测实体位置未发生变化时跳过寻路重计算，避免重复路径搜索消耗 CPU。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">position threshold</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-bullseye"></i></div>
+          <div class="opt-card-title">生物目标搜索优化</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">根据生物类型动态缩减目标搜索范围，并降低搜索频率，减少每 tick 的实体扫描开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">dynamic range</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-home"></i></div>
+          <div class="opt-card-title">村民传感器降频</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">将村民 POI 传感器更新间隔从每 tick 降低到每 20 tick，大幅减少村庄计算开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">interval: 20 ticks</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-orange">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-box"></i></div>
+          <div class="opt-card-title">掉落物物理跳过</div>
+          <span class="opt-card-tag">CPU</span>
+        </div>
+        <div class="opt-card-desc">地面上的静止掉落物跳过物理计算，仅保留拾取检测，减少大量物品实体的开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">velocity < 1e-6</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客户端优化 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-pink)"><i class="fas fa-desktop"></i></div>
+      <div>
+        <div class="section-title">客户端优化 — 服务端驱动</div>
+        <div class="section-desc">通过服务端调整数据包与实体行为，直接降低客户端渲染负载</div>
+      </div>
+    </div>
+    <div class="glass notice" style="border-left: 4px solid var(--accent-pink);">
+      <div class="notice-icon" style="color: var(--accent-pink)"><i class="fas fa-lightbulb"></i></div>
+      <div class="notice-content">
+        <strong>核心思路：</strong>Sodium / ImmediatelyFast 是纯客户端渲染优化模组，无法直接移植到服务端。但服务端可以通过<strong>减少发送给客户端的实体数量和数据包频率</strong>来达到等效甚至更好的客户端 FPS 提升效果。Mirage 通过调整实体追踪范围、刷怪上限、更新包频率等参数，从源头减少客户端需要渲染和处理的实体与数据量。
+      </div>
+    </div>
+    <div class="opt-grid" style="margin-top: 16px;">
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-eye"></i></div>
+          <div class="opt-card-title">实体追踪范围缩减</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">将实体追踪范围乘以 0.75（可配置），减少客户端需要渲染的实体数量。追踪范围越小 = 客户端渲染的实体越少 = FPS 越高。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">multiplier: 0.75</span>
+          <span class="opt-meta-item">-25% entities</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-satellite-dish"></i></div>
+          <div class="opt-card-title">远端实体更新包降频</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">距离玩家超过 32 格的实体，位置更新包发送频率从每 tick 降到每 5 tick，减少网络流量和客户端插值计算。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">interval: 5 ticks</span>
+          <span class="opt-meta-item">threshold: 32 blocks</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-expand"></i></div>
+          <div class="opt-card-title">动态视距管理</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">根据在线玩家数量和服务器 TPS 动态调整视距。玩家多时自动缩小视距（最低 4），减少客户端加载的区块和实体数量。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">min: 4 / max: 16</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="opt-card-title">区块数据包优先级排序</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">按玩家位置为中心螺旋排序区块发送顺序，确保玩家附近的区块优先加载，减少等待时间。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">spiral order</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-infinity"></i></div>
+          <div class="opt-card-title">实体元数据批量打包</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">将多个实体元数据更新包合并为单个包发送，减少数据包数量和客户端处理开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">batch per tick</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-pink">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-adjust"></i></div>
+          <div class="opt-card-title">自适应实体追踪</div>
+          <span class="opt-card-tag">Client FPS</span>
+        </div>
+        <div class="opt-card-desc">当服务器 TPS 低于 15 时，自动进一步缩减实体追踪范围，在低性能环境下保护客户端 FPS。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">TPS < 15 → shrink</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 刷怪优化 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-green)"><i class="fas fa-spider"></i></div>
+      <div>
+        <div class="section-title">刷怪优化 — 客户端 FPS 直接提升</div>
+        <div class="section-desc">减少服务端生成的实体数量，从源头降低客户端渲染负载</div>
+      </div>
+    </div>
+    <div class="glass flow-diagram">
+      <div class="flow-node glass theme-green">
+        <i class="fas fa-users"></i><br>玩家加入
+      </div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-node glass theme-orange">
+        <i class="fas fa-cog"></i><br>刷怪计算<br><small>cap × 0.7</small>
+      </div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-node glass theme-cyan">
+        <i class="fas fa-check"></i><br>实体上限检查<br><small>≤24/区块</small>
+      </div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-node glass theme-pink">
+        <i class="fas fa-eye"></i><br>追踪范围<br><small>×0.75</small>
+      </div>
+      <div class="flow-arrow"><i class="fas fa-arrow-right"></i></div>
+      <div class="flow-node glass theme-blue">
+        <i class="fas fa-desktop"></i><br>客户端渲染<br><small>FPS ↑↑↑</small>
+      </div>
+    </div>
+    <div class="opt-grid" style="margin-top: 16px;">
+      <div class="opt-card glass theme-green">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-sort-numeric-down"></i></div>
+          <div class="opt-card-title">怪物上限缩减</div>
+          <span class="opt-card-tag">Spawning</span>
+        </div>
+        <div class="opt-card-desc">将怪物生成上限乘以 0.7，减少 30% 的怪物总量。更少的怪物 = 更少的实体渲染 = 更高的客户端 FPS。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">mobCap × 0.7</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-green">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-broom"></i></div>
+          <div class="opt-card-title">超量快速消失</div>
+          <span class="opt-card-tag">Spawning</span>
+        </div>
+        <div class="opt-card-desc">当每玩家怪物数超过 35 时，加速远距离怪物消失，防止实体堆积导致客户端卡顿。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">threshold: 35</span>
+          <span class="opt-meta-item">despawn: 48 blocks</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-green">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-eye-slash"></i></div>
+          <div class="opt-card-title">隐藏区块跳过刷怪</div>
+          <span class="opt-card-tag">Spawning</span>
+        </div>
+        <div class="opt-card-desc">在没有玩家视野的区块中跳过刷怪计算，避免在无人区域生成无用实体。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">no LOS → skip</span>
+        </div>
+      </div>
+      <div class="opt-card glass theme-green">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-bat"></i></div>
+          <div class="opt-card-title">环境生物上限缩减</div>
+          <span class="opt-card-tag">Spawning</span>
+        </div>
+        <div class="opt-card-desc">将蝙蝠等环境生物的生成上限缩减至 30%，减少无意义实体的客户端渲染开销。</div>
+        <div class="opt-card-meta">
+          <span class="opt-meta-item">ambient × 0.3</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 区块与红石优化 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-blue)"><i class="fas fa-th-large"></i></div>
+      <div>
+        <div class="section-title">区块、红石与漏斗优化</div>
+        <div class="section-desc">减少高频方块操作的计算开销</div>
+      </div>
+    </div>
+    <div class="opt-grid">
+      <div class="opt-card glass theme-blue">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-sort"></i></div>
+          <div class="opt-card-title">区块 tick 顺序优化</div>
+          <span class="opt-card-tag">Chunk</span>
+        </div>
+        <div class="opt-card-desc">按曼哈顿距离排序区块 tick 迭代顺序，提升 CPU 缓存命中率，减少缓存未命中开销。</div>
+      </div>
+      <div class="opt-card glass theme-blue">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-times-circle"></i></div>
+          <div class="opt-card-title">空区块 tick 跳过</div>
+          <span class="opt-card-tag">Chunk</span>
+        </div>
+        <div class="opt-card-desc">跳过没有玩家且没有待处理方块更新的区块的 tick 计算，避免无用计算。</div>
+      </div>
+      <div class="opt-card glass theme-blue">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-bolt"></i></div>
+          <div class="opt-card-title">红石线批量更新</div>
+          <span class="opt-card-tag">Redstone</span>
+        </div>
+        <div class="opt-card-desc">将连接的红石线更新批量处理，避免逐方块递归更新导致的指数级计算。</div>
+      </div>
+      <div class="opt-card glass theme-blue">
+        <div class="opt-card-header">
+          <div class="opt-card-icon"><i class="fas fa-filter"></i></div>
+          <div class="opt-card-title">漏斗优化</div>
+          <span class="opt-card-tag">Hopper</span>
+        </div>
+        <div class="opt-card-desc">库存满时跳过漏斗冷却检查，空闲漏斗降频检查，无物品时跳过实体扫描。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 文件结构 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-cyan)"><i class="fas fa-folder-tree"></i></div>
+      <div>
+        <div class="section-title">新增与修改的文件</div>
+        <div class="section-desc">所有新增和修改的文件清单</div>
+      </div>
+    </div>
+    <div class="glass file-tree">
+<span class="dir">purpur-server/src/main/java/org/purpurmc/purpur/mirage/</span>
+  <span class="new">MirageConfig.java</span>           <span style="color:var(--text-secondary)">— 中央配置类 (70+ 配置项)</span>
+  <span class="new">MirageOptimizer.java</span>        <span style="color:var(--text-secondary)">— 核心工具 (快速随机数、对象池、距离计算)</span>
+  <span class="new">MirageMemoryOptimizer.java</span>  <span style="color:var(--text-secondary)">— 内存优化 (FerriteCore 理念)</span>
+  <span class="new">MirageEntityOptimizer.java</span>  <span style="color:var(--text-secondary)">— 实体优化 (Lithium 理念)</span>
+  <span class="new">MirageChunkOptimizer.java</span>   <span style="color:var(--text-secondary)">— 区块优化</span>
+  <span class="new">MirageClientOptimizer.java</span>  <span style="color:var(--text-secondary)">— 客户端优化 (服务端驱动)</span>
+  <span class="new">MirageRedstoneOptimizer.java</span><span style="color:var(--text-secondary)">— 红石/方块 tick 优化</span>
+
+<span class="dir">purpur-server/minecraft-patches/features/</span>
+  <span class="new">0022-Mirage-optimization-engine.patch</span>     <span style="color:var(--text-secondary)">— 主优化补丁</span>
+  <span class="new">0023-Mirage-client-optimization.patch</span>     <span style="color:var(--text-secondary)">— 客户端优化补丁</span>
+  <span class="new">0024-Mirage-memory-optimization.patch</span>      <span style="color:var(--text-secondary)">— 内存优化补丁</span>
+
+<span class="dir">purpur-server/src/main/java/org/purpurmc/purpur/</span>
+  <span class="mod">PurpurConfig.java</span>              <span style="color:var(--text-secondary)">— 添加 MirageConfig.init() 调用</span>
+
+<span class="dir">build-data/</span>
+  <span class="mod">purpur.at</span>                      <span style="color:var(--text-secondary)">— 添加优化钩子访问转换器</span>
+    </div>
+  </div>
+
+  <!-- 配置参考 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon glass" style="color: var(--accent-orange)"><i class="fas fa-sliders"></i></div>
+      <div>
+        <div class="section-title">配置参考</div>
+        <div class="section-desc">purpur.yml 中 settings.mirage.* 下的主要配置项</div>
+      </div>
+    </div>
+    <div class="glass config-table-wrap">
+      <table class="config-table">
+        <thead>
+          <tr>
+            <th>配置路径</th>
+            <th>类型</th>
+            <th>默认值</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="config-path">settings.mirage.memory.optimize-block-state-cache</td><td><span class="config-type" style="color:var(--accent-cyan)">bool</span></td><td class="config-default">true</td><td>方块状态缓存</td></tr>
+          <tr><td class="config-path">settings.mirage.memory.compact-entity-data</td><td><span class="config-type" style="color:var(--accent-cyan)">bool</span></td><td class="config-default">true</td><td>实体数据压缩</td></tr>
+          <tr><td class="config-path">settings.mirage.memory.deduplicate-nbt-tags</td><td><span class="config-type" style="color:var(--accent-cyan)">bool</span></td><td class="config-default">true</td><td>NBT 去重</td></tr>
+          <tr><td class="config-path">settings.mirage.memory.pool-block-pos</td><td><span class="config-type" style="color:var(--accent-cyan)">bool</span></td><td class="config-default">true</td><td>BlockPos 对象池</td></tr>
+          <tr><td class="config-path">settings.mirage.entity.ai-skip-distance</td><td><span class="config-type" style="color:var(--accent-orange)">int</span></td><td class="config-default">32</td><td>AI 跳过距离</td></tr>
+          <tr><td class="config-path">settings.mirage.entity.inactive-ai-tick-interval</td><td><span class="config-type" style="color:var(--accent-orange)">int</span></td><td class="config-default">4</td><td>非活跃 AI tick 间隔</td></tr>
+          <tr><td class="config-path">settings.mirage.entity.villager-sensor-interval</td><td><span class="config-type" style="color:var(--accent-orange)">int</span></td><td class="config-default">20</td><td>村民传感器更新间隔</td></tr>
+          <tr><td class="config-path">settings.mirage.client.entity-tracking-range-multiplier</td><td><span class="config-type" style="color:var(--accent-pink)">double</span></td><td class="config-default">0.75</td><td>实体追踪范围乘数</td></tr>
+          <tr><td class="config-path">settings.mirage.client.distant-entity-update-interval</td><td><span class="config-type" style="color:var(--accent-pink)">int</span></td><td class="config-default">5</td><td>远端实体更新间隔</td></tr>
+          <tr><td class="config-path">settings.mirage.client.dynamic-view-distance</td><td><span class="config-type" style="color:var(--accent-pink)">bool</span></td><td class="config-default">true</td><td>动态视距</td></tr>
+          <tr><td class="config-path">settings.mirage.client.adaptive-entity-tracking</td><td><span class="config-type" style="color:var(--accent-pink)">bool</span></td><td class="config-default">true</td><td>自适应追踪</td></tr>
+          <tr><td class="config-path">settings.mirage.spawning.mob-cap-multiplier</td><td><span class="config-type" style="color:var(--accent-green)">double</span></td><td class="config-default">0.7</td><td>怪物上限乘数</td></tr>
+          <tr><td class="config-path">settings.mirage.spawning.despawn-distance</td><td><span class="config-type" style="color:var(--accent-green)">int</span></td><td class="config-default">48</td><td>优化消失距离</td></tr>
+          <tr><td class="config-path">settings.mirage.spawning.max-entities-per-chunk</td><td><span class="config-type" style="color:var(--accent-green)">int</span></td><td class="config-default">24</td><td>每区块实体上限</td></tr>
+          <tr><td class="config-path">settings.mirage.chunk.skip-empty-ticks</td><td><span class="config-type" style="color:var(--accent-blue)">bool</span></td><td class="config-default">true</td><td>空区块 tick 跳过</td></tr>
+          <tr><td class="config-path">settings.mirage.redstone.optimize</td><td><span class="config-type" style="color:var(--accent-blue)">bool</span></td><td class="config-default">true</td><td>红石优化</td></tr>
+          <tr><td class="config-path">settings.mirage.hopper.optimize</td><td><span class="config-type" style="color:var(--accent-blue)">bool</span></td><td class="config-default">true</td><td>漏斗优化</td></tr>
+          <tr><td class="config-path">settings.mirage.network.aggressive-compression</td><td><span class="config-type" style="color:var(--accent-purple)">bool</span></td><td class="config-default">true</td><td>激进数据包压缩</td></tr>
+          <tr><td class="config-path">settings.mirage.general.fast-random</td><td><span class="config-type" style="color:var(--accent-cyan)">bool</span></td><td class="config-default">true</td><td>Xoshiro256++ 快速随机数</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 安全说明 -->
+  <div class="section">
+    <div class="glass notice" style="border-left: 4px solid var(--accent-green);">
+      <div class="notice-icon" style="color: var(--accent-green)"><i class="fas fa-shield-alt"></i></div>
+      <div class="notice-content">
+        <strong>安全性保证：</strong>所有优化默认开启但不破坏原版机制。地形生成、红石逻辑、生物行为等核心玩法保持不变。优化仅减少不必要的计算和内存开销，不会移除任何游戏功能。如果需要恢复原版行为，只需在 <code style="color:var(--accent-cyan);font-family:'JetBrains Mono',monospace">purpur.yml</code> 中将对应选项设为 <code style="color:var(--accent-orange);font-family:'JetBrains Mono',monospace">false</code> 即可。
+      </div>
+    </div>
+    <div class="glass notice" style="border-left: 4px solid var(--accent-orange); margin-top: 12px;">
+      <div class="notice-icon" style="color: var(--accent-orange)"><i class="fas fa-tools"></i></div>
+      <div class="notice-content">
+        <strong>构建说明：</strong>补丁文件需要在构建时通过 <code style="color:var(--accent-cyan);font-family:'JetBrains Mono',monospace">./gradlew applyAllPatches</code> 应用到上游 Paper 源码。如果补丁上下文行与上游不匹配，请手动调整补丁中的上下文行以匹配实际源码。访问转换器（purpur.at）中的条目可能需要根据实际上游字段名调整。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

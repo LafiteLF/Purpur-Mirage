@@ -13,3 +13,20 @@ public net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity openCount
 public net.minecraft.world.level.portal.PortalShape FRAME
 public-f net.minecraft.world.entity.EntityType dimensions
 public-f net.minecraft.world.level.block.state.BlockBehaviour explosionResistance
+# Mirage start - access transformers for optimization hooks
+public net.minecraft.world.entity.Mob activated
+public net.minecraft.server.level.ServerEntity lastSentPos
+public net.minecraft.server.level.ServerEntity lastSentYRot
+public net.minecraft.server.level.ServerEntity lastSentXRot
+public net.minecraft.server.level.ServerEntity broadcastFrequency
+public net.minecraft.server.level.ServerEntity updateFrequency
+public net.minecraft.world.level.chunk.LevelChunkSection states
+public net.minecraft.world.level.chunk.LevelChunkSection biomes
+public net.minecraft.world.level.chunk.PalettedContainer compact()V
+public net.minecraft.world.level.chunk.storage.RegionFileStorage regionCache
+public net.minecraft.world.level.block.state.BlockBehaviour$BlockStateBase lightEmission
+public net.minecraft.world.level.block.state.BlockBehaviour$BlockStateBase cacheInitialized
+public net.minecraft.nbt.CompoundTag entries
+public net.minecraft.world.item.ItemStack components
+public net.minecraft.world.entity.item.ItemEntity liftTop
+# Mirage end - access transformers for optimization hooks
