@@ -454,9 +454,13 @@ public class MirageConfig {
 
     /** Enable code execution via /python and /c++ commands */
     public static boolean enableCodeRunner = true;
-    /** Python executable path */
+    /**
+     * Python executable path — used ONLY as fallback if the embedded GraalPy
+     * runtime fails to initialize. The embedded Python (shaded into the JAR)
+     * is always tried first, so server admins don't need Python installed.
+     */
     public static String pythonExecutable = "python";
-    /** C++ compiler path */
+    /** C++ compiler path — unused; C++ is transpiled to Java internally */
     public static String cppCompiler = "g++";
     /** Code execution timeout in seconds */
     public static int codeExecutionTimeoutSec = 30;
@@ -547,7 +551,7 @@ public class MirageConfig {
                 org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] JVM warmup enabled — will pre-load classes and compile hot paths on startup.");
             }
             if (enableCodeRunner) {
-                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Code runner enabled: python=" + pythonExecutable + ", c++=" + cppCompiler + ", timeout=" + codeExecutionTimeoutSec + "s.");
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Code runner enabled: python=embedded GraalPy, c++=Java transpiler, timeout=" + codeExecutionTimeoutSec + "s.");
                 if (enableAutoRun) {
                     org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Auto-run enabled: monitoring ./python/main.py and ./c++/main.cpp for changes.");
                 }

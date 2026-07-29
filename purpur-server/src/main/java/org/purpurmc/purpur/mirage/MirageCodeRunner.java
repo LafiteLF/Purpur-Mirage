@@ -12,29 +12,35 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+// GraalVM Polyglot API — shaded directly into the JAR via build.gradle.kts
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.io.IOAccess;
+
 /**
  * MirageCodeRunner — Execute Python and C++ code from within the server.
  *
  * Architecture:
- * - Python: Uses GraalVM Polyglot API (org.graalvm.polyglot.Context) which is
- *   bundled with GraalVM JDK 25 (the required JDK for Mirage). Zero external deps.
- *   Falls back to system python if GraalVM polyglot is unavailable.
+ * - Python: Uses GraalVM Polyglot API (org.graalvm.polyglot), whose JARs are
+ *   shaded directly into the server JAR at build time. Zero external deps —
+ *   the server admin does NOT need to install Python on the host machine.
  * - C++: Transpiles C++ code to Java at runtime and compiles with the JDK's
  *   built-in javax.tools.JavaCompiler. Zero external dependencies.
  *
  * Features:
- * - /python <code> — Execute inline Python code
- * - /c++ <code> — Execute inline C++ code (transpile to Java + compile + run)
+ * - /python <code> — Execute inline Python code (embedded GraalPy)
+ * - /c++ <code> — Execute inline C++ code (transpile → compile → run)
  * - Auto-run: Monitor ./python/ and ./c++/ directories for main.py/main.cpp
  */
 public final class MirageCodeRunner {
@@ -59,10 +65,9 @@ public final class MirageCodeRunner {
     private static final AtomicLong totalAutoRuns = new AtomicLong(0);
     private static final AtomicLong totalFailures = new AtomicLong(0);
 
-    // GraalVM polyglot context (lazy-initialized)
-    private static volatile Object graalPythonContext; // org.graalvm.polyglot.Context
+    // GraalVM shared engine (created once, reused across all Python executions)
+    private static volatile Engine graalEngine;
     private static volatile boolean graalPolyglotAvailable = false;
-    private static volatile boolean graalPolyglotChecked = false;
 
     // Watch service for file monitoring
     private static WatchService watchService;
@@ -84,7 +89,7 @@ public final class MirageCodeRunner {
         new File(root, PYTHON_DIR).mkdirs();
         new File(root, CPP_DIR).mkdirs();
 
-        // Check GraalVM polyglot availability
+        // Initialize the embedded GraalPy engine
         checkGraalPolyglot();
 
         LOGGER.info("[Mirage] Code runner initialized. Directories: ./" + PYTHON_DIR + "/ and ./" + CPP_DIR + "/");
@@ -97,42 +102,40 @@ public final class MirageCodeRunner {
     }
 
     /**
-     * Check if GraalVM Polyglot API is available for Python execution.
+     * Initialize the GraalVM Polyglot engine for Python execution.
+     * The GraalPy JARs are shaded into the server JAR, so this always works
+     * as long as the Truffle runtime is on the classpath.
      */
     private static void checkGraalPolyglot() {
-        if (graalPolyglotChecked) return;
-        graalPolyglotChecked = true;
-
         try {
-            // Try to load the GraalVM Polyglot Context class
-            Class<?> contextClass = Class.forName("org.graalvm.polyglot.Context");
-            Class<?> engineClass = Class.forName("org.graalvm.polyglot.Engine");
+            // Create a shared engine — this loads the Truffle runtime and Python language
+            graalEngine = Engine.newBuilder()
+                .option("engine.WarnInterpreterOnly", "false")
+                .build();
 
-            // Try to create a test context to verify Python is available
-            Object engine = engineClass.getMethod("newBuilder").invoke(null);
-            Object engineBuilt = engineClass.getMethod("build").invoke(engine);
+            // Verify Python language is available by creating a test context
+            try (Context testCtx = Context.newBuilder("python")
+                .engine(graalEngine)
+                .allowIO(IOAccess.ALL)
+                .allowHostAccess(HostAccess.ALL)
+                .allowAllAccess(true)
+                .build()) {
+                testCtx.eval("python", "1+1");
+            }
 
-            Object contextBuilder = contextClass.getMethod("newBuilder").invoke(null);
-            // Configure allowed languages
-            contextClass.getMethod("allowAllAccess", boolean.class).invoke(contextBuilder, true);
-            Object context = contextClass.getMethod("build").invoke(contextBuilder);
-
-            // Test if Python is available
-            contextClass.getMethod("initialize", String.class).invoke(context, "python");
-
-            graalPythonContext = context;
             graalPolyglotAvailable = true;
-            LOGGER.info("[Mirage] GraalVM Polyglot Python engine available — using embedded Python runtime.");
+            LOGGER.info("[Mirage] GraalPy embedded Python runtime initialized successfully — no external Python needed.");
         } catch (Throwable e) {
             graalPolyglotAvailable = false;
-            LOGGER.info("[Mirage] GraalVM Polyglot not available, will use system python: " + MirageConfig.pythonExecutable);
+            LOGGER.warning("[Mirage] GraalPy initialization failed: " + e.getMessage());
+            LOGGER.info("[Mirage] Falling back to system python: " + MirageConfig.pythonExecutable);
         }
     }
 
     // ========== Python Execution ==========
 
     /**
-     * Execute Python code using GraalVM Polyglot or system python.
+     * Execute Python code using embedded GraalPy (primary) or system python (fallback).
      */
     public static void executePython(String code, Consumer<String> callback) {
         if (!MirageConfig.enableCodeRunner) {
@@ -150,43 +153,32 @@ public final class MirageCodeRunner {
     }
 
     /**
-     * Execute Python using GraalVM Polyglot API (embedded, no external python needed).
+     * Execute Python using the embedded GraalVM Polyglot API.
+     * The Python runtime is packaged inside the JAR — no host Python installation required.
      */
     private static void executePythonGraal(String code, Consumer<String> callback) {
         try {
-            Class<?> contextClass = Class.forName("org.graalvm.polyglot.Context");
-            Object context = graalPythonContext;
-
-            // Create a new context for each execution to avoid state leakage
-            Object builder = contextClass.getMethod("newBuilder").invoke(null);
-            contextClass.getMethod("allowAllAccess", boolean.class).invoke(builder, true);
-
-            // Set up output capture
+            // Capture stdout/stderr
             StringWriter stdoutWriter = new StringWriter();
             StringWriter stderrWriter = new StringWriter();
-            contextClass.getMethod("out", java.io.OutputStream.class).invoke(builder,
-                new java.io.OutputStream() {
-                    @Override
-                    public void write(int b) { stdoutWriter.write(b); }
-                });
-            contextClass.getMethod("err", java.io.OutputStream.class).invoke(builder,
-                new java.io.OutputStream() {
-                    @Override
-                    public void write(int b) { stderrWriter.write(b); }
-                });
 
-            Object ctx = contextClass.getMethod("build").invoke(builder);
+            try (Context ctx = Context.newBuilder("python")
+                    .engine(graalEngine)
+                    .allowIO(IOAccess.ALL)
+                    .allowHostAccess(HostAccess.ALL)
+                    .allowAllAccess(true)
+                    .out(new java.io.OutputStream() {
+                        @Override
+                        public void write(int b) { stdoutWriter.write(b); }
+                    })
+                    .err(new java.io.OutputStream() {
+                        @Override
+                        public void write(int b) { stderrWriter.write(b); }
+                    })
+                    .build()) {
 
-            // Initialize Python
-            contextClass.getMethod("initialize", String.class).invoke(ctx, "python");
-
-            // Execute the code
-            Object bindings = contextClass.getMethod("getBindings", String.class).invoke(ctx, "python");
-            // Evaluate the code
-            contextClass.getMethod("eval", String.class, String.class).invoke(ctx, "python", code);
-
-            // Close context
-            contextClass.getMethod("close").invoke(ctx);
+                ctx.eval("python", code);
+            }
 
             String stdout = stdoutWriter.toString().trim();
             String stderr = stderrWriter.toString().trim();
@@ -205,7 +197,7 @@ public final class MirageCodeRunner {
     }
 
     /**
-     * Execute Python using system-installed python (fallback).
+     * Execute Python using system-installed python (fallback only).
      */
     private static void executePythonSystem(String code, Consumer<String> callback) {
         File tempFile = null;
@@ -221,7 +213,7 @@ public final class MirageCodeRunner {
         } catch (Exception e) {
             totalFailures.incrementAndGet();
             callback.accept("Error: " + e.getMessage() +
-                "\nPython not found. Install Python or use GraalVM JDK.");
+                "\nEmbedded Python unavailable and system python not found.");
         } finally {
             if (tempFile != null) tempFile.delete();
         }
@@ -481,11 +473,10 @@ public final class MirageCodeRunner {
             try { watchService.close(); } catch (IOException ignored) {}
         }
 
-        // Close GraalVM context
-        if (graalPythonContext != null) {
+        // Close GraalVM engine
+        if (graalEngine != null) {
             try {
-                Class<?> contextClass = Class.forName("org.graalvm.polyglot.Context");
-                contextClass.getMethod("close").invoke(graalPythonContext);
+                graalEngine.close();
             } catch (Exception ignored) {}
         }
 
@@ -501,7 +492,7 @@ public final class MirageCodeRunner {
         stats.put("auto_runs", totalAutoRuns.get());
         stats.put("failures", totalFailures.get());
         stats.put("graal_polyglot", graalPolyglotAvailable);
-        stats.put("python_mode", graalPolyglotAvailable ? "GraalVM embedded" : "system: " + MirageConfig.pythonExecutable);
+        stats.put("python_mode", graalPolyglotAvailable ? "GraalPy embedded (JAR-bundled)" : "system: " + MirageConfig.pythonExecutable);
         stats.put("cpp_mode", "Java transpiler (JDK built-in compiler)");
         stats.put("auto_run_enabled", MirageConfig.enableAutoRun);
         return stats;
