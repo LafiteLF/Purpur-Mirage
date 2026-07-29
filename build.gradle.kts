@@ -47,6 +47,11 @@ subprojects {
         options.isFork = true
         options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal"))
     }
+
+    // Mirage - rename JAR output from purpur-* to mirage-*
+    tasks.withType<Jar> {
+        archiveBaseName = archiveBaseName.get().replace("purpur", "mirage")
+    }
     tasks.withType<Javadoc> {
         options.encoding = Charsets.UTF_8.name()
     }
