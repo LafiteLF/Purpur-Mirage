@@ -324,6 +324,75 @@ public class MirageConfig {
         logOptimizationSummary = getBoolean("settings.mirage.general.log-optimization-summary", logOptimizationSummary);
     }
 
+    // ==================== Entity Limiter ====================
+
+    /** Enable per-world entity limit enforcement */
+    public static boolean enableEntityLimiter = true;
+    /** Automatically cull excess entities when limits are exceeded */
+    public static boolean autoCullExcess = true;
+    /** Percentage of excess entities to cull per check (0-1) */
+    public static double cullPercentage = 0.5;
+    /** Max monsters per world */
+    public static int entityLimitMonster = 200;
+    /** Max animals per world */
+    public static int entityLimitAnimal = 150;
+    /** Max ambient creatures (bats) per world */
+    public static int entityLimitAmbient = 30;
+    /** Max water creatures per world */
+    public static int entityLimitWater = 100;
+    /** Max dropped items per world */
+    public static int entityLimitItem = 200;
+    /** Max XP orbs per world */
+    public static int entityLimitXpOrb = 100;
+    /** Max projectiles per world */
+    public static int entityLimitProjectile = 150;
+    /** Max other entities per world */
+    public static int entityLimitOther = 300;
+
+    private static void entityLimiter() {
+        enableEntityLimiter = getBoolean("settings.mirage.entity-limiter.enabled", enableEntityLimiter);
+        autoCullExcess = getBoolean("settings.mirage.entity-limiter.auto-cull", autoCullExcess);
+        cullPercentage = getDouble("settings.mirage.entity-limiter.cull-percentage", cullPercentage);
+        entityLimitMonster = getInt("settings.mirage.entity-limiter.monster", entityLimitMonster);
+        entityLimitAnimal = getInt("settings.mirage.entity-limiter.animal", entityLimitAnimal);
+        entityLimitAmbient = getInt("settings.mirage.entity-limiter.ambient", entityLimitAmbient);
+        entityLimitWater = getInt("settings.mirage.entity-limiter.water", entityLimitWater);
+        entityLimitItem = getInt("settings.mirage.entity-limiter.item", entityLimitItem);
+        entityLimitXpOrb = getInt("settings.mirage.entity-limiter.xp-orb", entityLimitXpOrb);
+        entityLimitProjectile = getInt("settings.mirage.entity-limiter.projectile", entityLimitProjectile);
+        entityLimitOther = getInt("settings.mirage.entity-limiter.other", entityLimitOther);
+    }
+
+    // ==================== Monitor & Auto-Optimization ====================
+
+    /** Enable runtime monitoring task */
+    public static boolean enableMonitor = true;
+    /** Monitor check interval in ticks (default 100 = 5 seconds) */
+    public static int monitorIntervalTicks = 100;
+    /** Log periodic health summary every 5 minutes */
+    public static boolean logPeriodicSummary = true;
+    /** Memory usage percentage that triggers a warning */
+    public static double memoryWarningThreshold = 70.0;
+    /** Memory usage percentage that triggers critical actions */
+    public static double memoryCriticalThreshold = 85.0;
+    /** Auto-clear optimization caches when memory is critical */
+    public static boolean autoClearCacheOnPressure = true;
+    /** Auto-suggest GC when memory is critical */
+    public static boolean autoSuggestGc = true;
+    /** TPS below which warnings are logged */
+    public static double tpsWarningThreshold = 15.0;
+
+    private static void monitorConfig() {
+        enableMonitor = getBoolean("settings.mirage.monitor.enabled", enableMonitor);
+        monitorIntervalTicks = getInt("settings.mirage.monitor.interval-ticks", monitorIntervalTicks);
+        logPeriodicSummary = getBoolean("settings.mirage.monitor.log-periodic-summary", logPeriodicSummary);
+        memoryWarningThreshold = getDouble("settings.mirage.monitor.memory-warning-threshold", memoryWarningThreshold);
+        memoryCriticalThreshold = getDouble("settings.mirage.monitor.memory-critical-threshold", memoryCriticalThreshold);
+        autoClearCacheOnPressure = getBoolean("settings.mirage.monitor.auto-clear-cache", autoClearCacheOnPressure);
+        autoSuggestGc = getBoolean("settings.mirage.monitor.auto-gc", autoSuggestGc);
+        tpsWarningThreshold = getDouble("settings.mirage.monitor.tps-warning-threshold", tpsWarningThreshold);
+    }
+
     // ==================== Config helpers ====================
 
     private static boolean getBoolean(String path, boolean def) {
@@ -355,6 +424,8 @@ public class MirageConfig {
         mobSpawningOptimization();
         networkOptimization();
         generalOptimization();
+        entityLimiter();
+        monitorConfig();
 
         if (logOptimizationSummary) {
             int enabled = countEnabled();
@@ -367,6 +438,12 @@ public class MirageConfig {
             }
             if (optimizeEntityTrackingRange) {
                 org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Entity tracking range reduced to " + (int)(entityTrackingRangeMultiplier * 100) + "% for client FPS improvement.");
+            }
+            if (enableEntityLimiter) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Entity limiter active: monster=" + entityLimitMonster + ", animal=" + entityLimitAnimal + ", item=" + entityLimitItem + " per world.");
+            }
+            if (enableMonitor) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Runtime monitor active: interval=" + monitorIntervalTicks + "t, memory warning=" + (int)memoryWarningThreshold + "%, critical=" + (int)memoryCriticalThreshold + "%.");
             }
         }
     }
@@ -420,6 +497,10 @@ public class MirageConfig {
         if (fastRandom) count++;
         if (threadLocalEntityRandom) count++;
         if (parallelEntityTicking) count++;
+        if (enableEntityLimiter) count++;
+        if (autoCullExcess) count++;
+        if (enableMonitor) count++;
+        if (autoClearCacheOnPressure) count++;
         return count;
     }
 }
