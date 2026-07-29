@@ -5,6 +5,7 @@ Subject: [PATCH] Setting to reintroduce end void rings
 
 
 diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 67021175410926dbdd7759af28b082a870c3f92e..ece422ef99fbb30365b53599e985c1ff005b7477 100644
 --- a/net/minecraft/server/MinecraftServer.java
 +++ b/net/minecraft/server/MinecraftServer.java
 @@ -1327,6 +1327,15 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
@@ -20,7 +21,7 @@ diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/Mi
 +                }
 +            }
 +            // Purpur end - Migrate Setting to reintroduce end void rings
- 
+
              while (this.running) {
                  final long tickStart = System.nanoTime(); // Paper - improve tick loop
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
@@ -49,7 +50,7 @@ diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft
 -        // Purpur start - Purpur config files
 +        /*// Purpur start - Purpur config files // Purpur start - Migrate Setting to reintroduce end void rings
          try {
-             org.purpurmc.purpur.PurpurConfig.init((java.io.File) options.valueOf("purpur-settings"));
+             org.purpurmc.purpur.PurpurConfig.init((java.io.File) options.valueOf("mirage-settings"));
          } catch (Exception e) {
 @@ -259,7 +268,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
              return false;
@@ -58,5 +59,5 @@ diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft
 -        // Purpur end - Purpur config files
 +        */// Purpur end - Purpur config files // Purpur end - Migrate Setting to reintroduce end void rings
          com.destroystokyo.paper.VersionHistoryManager.INSTANCE.getClass(); // Paper - load version history now
- 
+
          // this.worldData.setGameType(properties.gameMode.get()); // CraftBukkit - moved to world loading
