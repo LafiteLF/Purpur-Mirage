@@ -26,6 +26,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.purpurmc.purpur.command.PurpurCommand;
+import org.purpurmc.purpur.command.PythonCommand;
+import org.purpurmc.purpur.command.CppCommand;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,6 +75,8 @@ public class PurpurConfig {
 
         commands = new HashMap<>();
         commands.put("mirage", new PurpurCommand("mirage"));
+        commands.put("python", new PythonCommand("python"));
+        commands.put("c++", new CppCommand("c++"));
 
         version = getInt("config-version", 48);
         set("config-version", 48);

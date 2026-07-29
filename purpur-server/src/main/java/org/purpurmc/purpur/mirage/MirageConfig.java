@@ -393,6 +393,90 @@ public class MirageConfig {
         tpsWarningThreshold = getDouble("settings.mirage.monitor.tps-warning-threshold", tpsWarningThreshold);
     }
 
+    // ==================== Smart Auto-Save ====================
+
+    /** Enable smart chunk auto-save that spreads saves across ticks */
+    public static boolean enableSmartAutoSave = true;
+    /** Auto-save interval in ticks (default 6000 = 5 min, vanilla) */
+    public static int autoSaveIntervalTicks = 6000;
+    /** Max chunks to save per tick in smart mode */
+    public static int maxSavesPerTick = 8;
+    /** Flush all pending saves on server shutdown */
+    public static boolean flushOnShutdown = true;
+
+    private static void smartAutoSave() {
+        enableSmartAutoSave = getBoolean("settings.mirage.autosave.enabled", enableSmartAutoSave);
+        autoSaveIntervalTicks = getInt("settings.mirage.autosave.interval-ticks", autoSaveIntervalTicks);
+        maxSavesPerTick = getInt("settings.mirage.autosave.max-saves-per-tick", maxSavesPerTick);
+        flushOnShutdown = getBoolean("settings.mirage.autosave.flush-on-shutdown", flushOnShutdown);
+    }
+
+    // ==================== GC Profiler ====================
+
+    /** Enable GC pause tracking */
+    public static boolean enableGcProfiler = true;
+    /** GC pause threshold (ms) to log warning */
+    public static int gcPauseWarningMs = 50;
+
+    private static void gcProfilerConfig() {
+        enableGcProfiler = getBoolean("settings.mirage.gc-profiler.enabled", enableGcProfiler);
+        gcPauseWarningMs = getInt("settings.mirage.gc-profiler.pause-warning-ms", gcPauseWarningMs);
+    }
+
+    // ==================== Chunk Prefetch ====================
+
+    /** Enable predictive chunk prefetch based on player movement */
+    public static boolean enableChunkPrefetch = true;
+    /** How many ticks ahead to predict player position */
+    public static int prefetchLookaheadTicks = 40;
+    /** Radius of chunks to prefetch ahead of player */
+    public static int prefetchRadius = 3;
+    /** Max chunks to prefetch per cycle per player */
+    public static int maxPrefetchPerCycle = 16;
+
+    private static void chunkPrefetchConfig() {
+        enableChunkPrefetch = getBoolean("settings.mirage.prefetch.enabled", enableChunkPrefetch);
+        prefetchLookaheadTicks = getInt("settings.mirage.prefetch.lookahead-ticks", prefetchLookaheadTicks);
+        prefetchRadius = getInt("settings.mirage.prefetch.radius", prefetchRadius);
+        maxPrefetchPerCycle = getInt("settings.mirage.prefetch.max-per-cycle", maxPrefetchPerCycle);
+    }
+
+    // ==================== JVM Warmup ====================
+
+    /** Enable JVM warmup during server startup */
+    public static boolean enableJvmWarmup = true;
+
+    private static void jvmWarmupConfig() {
+        enableJvmWarmup = getBoolean("settings.mirage.warmup.enabled", enableJvmWarmup);
+    }
+
+    // ==================== Code Runner (Python / C++) ====================
+
+    /** Enable code execution via /python and /c++ commands */
+    public static boolean enableCodeRunner = true;
+    /** Python executable path */
+    public static String pythonExecutable = "python";
+    /** C++ compiler path */
+    public static String cppCompiler = "g++";
+    /** Code execution timeout in seconds */
+    public static int codeExecutionTimeoutSec = 30;
+    /** Enable auto-run directories (./python/main.py and ./c++/main.cpp) */
+    public static boolean enableAutoRun = true;
+    /** Clean up compiled .exe after auto-run */
+    public static boolean cleanUpAutoRunExe = true;
+    /** Check interval for auto-run files (in ticks) */
+    public static int autoRunCheckIntervalTicks = 100;
+
+    private static void codeRunnerConfig() {
+        enableCodeRunner = getBoolean("settings.mirage.code-runner.enabled", enableCodeRunner);
+        pythonExecutable = getString("settings.mirage.code-runner.python-executable", pythonExecutable);
+        cppCompiler = getString("settings.mirage.code-runner.cpp-compiler", cppCompiler);
+        codeExecutionTimeoutSec = getInt("settings.mirage.code-runner.timeout-sec", codeExecutionTimeoutSec);
+        enableAutoRun = getBoolean("settings.mirage.code-runner.auto-run", enableAutoRun);
+        cleanUpAutoRunExe = getBoolean("settings.mirage.code-runner.cleanup-exe", cleanUpAutoRunExe);
+        autoRunCheckIntervalTicks = getInt("settings.mirage.code-runner.check-interval", autoRunCheckIntervalTicks);
+    }
+
     // ==================== Config helpers ====================
 
     private static boolean getBoolean(String path, boolean def) {
@@ -426,6 +510,11 @@ public class MirageConfig {
         generalOptimization();
         entityLimiter();
         monitorConfig();
+        smartAutoSave();
+        gcProfilerConfig();
+        chunkPrefetchConfig();
+        jvmWarmupConfig();
+        codeRunnerConfig();
 
         if (logOptimizationSummary) {
             int enabled = countEnabled();
@@ -444,6 +533,24 @@ public class MirageConfig {
             }
             if (enableMonitor) {
                 org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Runtime monitor active: interval=" + monitorIntervalTicks + "t, memory warning=" + (int)memoryWarningThreshold + "%, critical=" + (int)memoryCriticalThreshold + "%.");
+            }
+            if (enableSmartAutoSave) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Smart auto-save: interval=" + autoSaveIntervalTicks + "t, max " + maxSavesPerTick + " chunks/tick.");
+            }
+            if (enableGcProfiler) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] GC profiler active: warning threshold=" + gcPauseWarningMs + "ms.");
+            }
+            if (enableChunkPrefetch) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Chunk prefetch: lookahead=" + prefetchLookaheadTicks + "t, radius=" + prefetchRadius + ", max=" + maxPrefetchPerCycle + "/cycle.");
+            }
+            if (enableJvmWarmup) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] JVM warmup enabled — will pre-load classes and compile hot paths on startup.");
+            }
+            if (enableCodeRunner) {
+                org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Code runner enabled: python=" + pythonExecutable + ", c++=" + cppCompiler + ", timeout=" + codeExecutionTimeoutSec + "s.");
+                if (enableAutoRun) {
+                    org.bukkit.Bukkit.getLogger().log(Level.INFO, "[Mirage] Auto-run enabled: monitoring ./python/main.py and ./c++/main.cpp for changes.");
+                }
             }
         }
     }
@@ -501,6 +608,12 @@ public class MirageConfig {
         if (autoCullExcess) count++;
         if (enableMonitor) count++;
         if (autoClearCacheOnPressure) count++;
+        if (enableSmartAutoSave) count++;
+        if (enableGcProfiler) count++;
+        if (enableChunkPrefetch) count++;
+        if (enableJvmWarmup) count++;
+        if (enableCodeRunner) count++;
+        if (enableAutoRun) count++;
         return count;
     }
 }
